@@ -55,7 +55,7 @@ def main():
     done = False
 
     while not done:
-        actions = [env.rng.choice(env.actions) for _ in range(n_agents)]  # replace this with your multi-agent RL algorithm
+        actions = [env.rng.choice(env.actions) for _ in range(N_AGENTS)]  # replace this with your multi-agent RL algorithm
         next_state, rewards = env.step(state, actions)
         # update your multi-agent RL algorithm here based on the experience (state, actions, rewards, next_state)
         state = next_state
