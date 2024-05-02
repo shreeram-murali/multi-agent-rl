@@ -14,6 +14,7 @@ class MultiAgentRandomMDP(mdp.MDP):
         self.n_states = n_states
         self.n_actions = n_actions
         self.reward_funcs = reward_funcs
+        self.n_joint_actions = n_actions ** n_agents 
         
         self.rng = np.random.default_rng(seed)
         
@@ -22,13 +23,18 @@ class MultiAgentRandomMDP(mdp.MDP):
 
         P = self._generate_transition_matrix()
         R = self._generate_reward_matrix()
+        L = self._generate_graph_network() # TODO: generate network structure 
 
         d0 = np.ones(n_states) / n_states 
         
         super().__init__(states, actions, R, P, d0)
     
     def _generate_transition_matrix(self):
-        P = self.rng.uniform(size=(self.n_states, self.n_actions, self.n_states))
+        # we need to extend this matrix to be larger, for multiple agents 
+        # here n_actions in the next line should be the number of joiint actions, i.e., 2^N
+        # TODO: define joint actions
+        P = self.rng.uniform(size=(self.n_states, self.n_joint_actions, self.n_states))
+        # figure out how to map each action in the joint action space to a column vector 
         P /= P.sum(axis=-1, keepdims=True)
         return P
     
@@ -39,6 +45,12 @@ class MultiAgentRandomMDP(mdp.MDP):
         return R
     
     def step(self, state, actions):
+        # supposed to take in the joint actions, not just one action 
+        # 
+        # we look at the Laplacian and see if it's connected to the agent and then update
+        # here were can do multinomial sampling to select which state we move to
+        # which will be based on the P matrix [p1, p2, p3, p3], which is the third dimension of the
+        # state transition matrix 
         next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
         rewards = self.R[state, actions[0], next_state, :]
         return next_state, rewards
@@ -63,8 +75,8 @@ def main():
 
 
 if __name__ == '__main__':
-    N_STATES = 20
-    N_AGENTS = 20
+    N_STATES = 5
+    N_AGENTS = 5
     N_ACTIONS = 2 
     
     main()
