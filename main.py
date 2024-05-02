@@ -40,6 +40,8 @@ class MultiAgentRandomMDP(mdp.MDP):
         # TODO: define joint actions
         P = self.rng.uniform(size=(self.n_states, self.n_joint_actions, self.n_states))
         # figure out how to map each action in the joint action space to a column vector 
+        # NOTE: I guess this is already done now? I'm not sure what other changes are needed apart 
+        # from defining the size based on joint actions rather than number of actions 
         P /= P.sum(axis=-1, keepdims=True)
         return P
 
@@ -67,17 +69,21 @@ class MultiAgentRandomMDP(mdp.MDP):
         indegrees = np.diag(np.sum(self.G, axis=1))
         L = indegrees - self.G
         return L
+    
+    def step(self, state, joint_action):
+        # Convert joint_action to an index in the joint action space
+        action_index = sum(a * (self.n_actions ** i) for i, a in enumerate(joint_action))
+        
+        # next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
+        next_state = self.rng.choice(self.states, p=self.P[state, action_index])
+        connected_agents = np.where(self.L[np.arange(self.n_agents), joint_action] != 0)[0]
 
-    def step(self, state, actions):
-        # supposed to take in the joint actions, not just one action 
-        # 
-        # we look at the Laplacian and see if it's connected to the agent and then update
-        # here were can do multinomial sampling to select which state we move to
-        # which will be based on the P matrix [p1, p2, p3, p3], which is the third dimension of the
-        # state transition matrix 
-        next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
-        rewards = self.R[state, actions[0], next_state, :]
-        return next_state, rewards
+        updated_joint_action = list(joint_action)
+        for agent in connected_agents:
+            updated_joint_action[agent] = self.rng.choice(self.actions)
+
+        rewards = self.R[state, joint_action, next_state, :]
+        return next_state, rewards, updated_joint_action
 
 
 def reward_functions(n_states, n_actions):
