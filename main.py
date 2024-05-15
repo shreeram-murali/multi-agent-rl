@@ -18,20 +18,22 @@ class MultiAgentRandomMDP(mdp.MDP):
 
         self.rng = np.random.default_rng(seed)
 
-        states = list(range(n_states))
-        actions = list(range(n_actions))
+        self.states = list(range(n_states))
+        self.actions = list(range(n_actions))
 
         self.P = self._generate_transition_matrix()
         self.R = self._generate_reward_matrix()
         self.G = self._generate_communication_matrix()
         self.L = self._generate_laplacian()
-        print(self.L)
-        eigs = np.linalg.eig(self.L)
-        print(eigs.eigenvalues)
+        self.phi = self._generate_feature_matrix(5)
+        self.features_b = self._generate_feature_vectors_b(1)
+        # print(self.L)
+        # eigs = np.linalg.eig(self.L)
+        # print(eigs.eigenvalues)
 
         d0 = np.ones(n_states) / n_states
 
-        super().__init__(states, actions, self.R, self.P, d0)
+        super().__init__(self.states, self.actions, self.R, self.P, d0)
 
     def _generate_transition_matrix(self):
         P = self.rng.uniform(size=(self.n_states, self.n_actions, self.n_states))
@@ -63,10 +65,55 @@ class MultiAgentRandomMDP(mdp.MDP):
         L = indegrees - self.G
         return L
 
+    def _generate_feature_matrix(self, k):
+
+        feature_matrix = np.zeros((S, 2**self.n_agents, k))
+        for state in range(self.n_states):
+            # Iterate over each possible joint action
+
+            for joint_action in range(2**self.n_agents):
+                # Convert joint action to binary representation
+                action_vector = [
+                    int(x) for x in bin(joint_action)[2:].zfill(self.n_agents)
+                ]
+                # print(action_vector, joint_action)
+
+                # Example: Define feature vector based on state and joint action
+                feature_vector = np.random.rand(
+                    k
+                )  # Example: Random feature vector of length k
+
+                # Store feature vector in the feature matrix
+                feature_matrix[state, joint_action, :] = feature_vector
+
+        return feature_matrix
+
+    def _generate_feature_vectors_b(self, m):
+        feature_matrix_b = np.zeros((self.n_states, self.n_agents, m))
+        for state in range(self.n_states):
+            for action in range(self.n_actions):
+                feature_matrix_b[state, action] = np.random.rand(m)
+
+        return feature_matrix_b
+
     def step(self, state, actions):
         next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
         rewards = self.R[state, actions[0], next_state, :]
         return next_state, rewards
+
+    def evalQ(self, state, joint_action):
+        joint_action_idx = int("".join(map(str, joint_action)), 2)
+        feature_vector = self.phi[state, joint_action_idx, :]
+        return feature_vector
+
+    def evalPolicy(self, state, action, theta):
+        feature_a = self.features_b[state, action, :]
+        num = np.exp(feature_a @ theta)
+        den = 0
+        for i in range(2):
+            den += np.exp(self.features_b[state, i, :] @ theta)
+        policy = num / den
+        return policy
 
 
 def reward_functions(n_states, n_actions):
@@ -86,14 +133,55 @@ def main():
     state = env.states[env.rng.choice(len(env.states), p=env.P0)]
     done = False
 
+    # Define initial parameters
+    mu_0 = np.zeros(N_AGENTS)
+    theta_0 = np.zeros(N_AGENTS)
+    omega_0 = np.zeros(N_AGENTS)
+    omega_tilde_0 = np.zeros(N_AGENTS)
+
+    # Initialize parameters
+    mu = mu_0
+    omega = omega_0
+    theta = theta_0
+    omega_tilde = omega_tilde_0
+    t_step = 0
+
     while not done:
-        actions = [
+
+        # Calculate step sizes
+        beta_omega = 1 / ((t_step + 1) ** 0.65)
+        beta_theta = 1 / ((t_step + 1) ** 0.85)
+
+        joint_action = [
             env.rng.choice(env.actions) for _ in range(N_AGENTS)
         ]  # replace this with your multi-agent RL algorithm
-        next_state, rewards = env.step(state, actions)
+        next_state, rewards_ = env.step(state, joint_action)
         # update your multi-agent RL algorithm here based on the experience (state, actions, rewards, next_state)
+
+        # We need to sample new actions here
+        next_joint_action = [1, 0, 1, 0, 0]  # Make this correct
+        # Mu update
+        mu = (1 - beta_omega) * mu + beta_omega * rewards_
+
+        # TD error update
+        td_error = (
+            rewards
+            - mu
+            + omega * env.evalQ(next_state, next_joint_action)
+            - omega * env.evalQ(state, joint_action)
+        )
+        # Critic step
+        omega_tilde = omega + beta_omega * td_error @ env.evalQ(state, joint_action)
+        A, psi = 1
+        # Actor step
+        theta = theta + beta_theta * A * psi
+
+        # Consensus step
+        omega = weight_matrix * omega_tilde
+
         state = next_state
         done = env.s_terminal[state]
+        t_step += 1
 
 
 if __name__ == "__main__":
