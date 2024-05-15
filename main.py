@@ -15,6 +15,7 @@ class MultiAgentRandomMDP(mdp.MDP):
         self.n_states = n_states
         self.n_actions = n_actions
         self.reward_funcs = reward_funcs
+        self.n_joint_actions = n_actions**n_agents
 
         self.rng = np.random.default_rng(seed)
 
@@ -36,7 +37,13 @@ class MultiAgentRandomMDP(mdp.MDP):
         super().__init__(self.states, self.actions, self.R, self.P, d0)
 
     def _generate_transition_matrix(self):
-        P = self.rng.uniform(size=(self.n_states, self.n_actions, self.n_states))
+        # we need to extend this matrix to be larger, for multiple agents
+        # here n_actions in the next line should be the number of joiint actions, i.e., 2^N
+        # TODO: define joint actions
+        P = self.rng.uniform(size=(self.n_states, self.n_joint_actions, self.n_states))
+        # figure out how to map each action in the joint action space to a column vector
+        # NOTE: I guess this is already done now? I'm not sure what other changes are needed apart
+        # from defining the size based on joint actions rather than number of actions
         P /= P.sum(axis=-1, keepdims=True)
         return P
 
@@ -65,9 +72,26 @@ class MultiAgentRandomMDP(mdp.MDP):
         L = indegrees - self.G
         return L
 
+    def step(self, state, joint_action):
+        # Convert joint_action to an index in the joint action space
+        action_index = sum(a * (self.n_actions**i) for i, a in enumerate(joint_action))
+
+        # next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
+        next_state = self.rng.choice(self.states, p=self.P[state, action_index])
+        connected_agents = np.where(
+            self.L[np.arange(self.n_agents), joint_action] != 0
+        )[0]
+
+        updated_joint_action = list(joint_action)
+        for agent in connected_agents:
+            updated_joint_action[agent] = self.rng.choice(self.actions)
+
+        rewards = self.R[state, joint_action, next_state, :]
+        return next_state, rewards, updated_joint_action
+
     def _generate_feature_matrix(self, k):
 
-        feature_matrix = np.zeros((S, 2**self.n_agents, k))
+        feature_matrix = np.zeros((self.n_states, 2**self.n_agents, k))
         for state in range(self.n_states):
             # Iterate over each possible joint action
 
@@ -95,11 +119,6 @@ class MultiAgentRandomMDP(mdp.MDP):
                 feature_matrix_b[state, action] = np.random.rand(m)
 
         return feature_matrix_b
-
-    def step(self, state, actions):
-        next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
-        rewards = self.R[state, actions[0], next_state, :]
-        return next_state, rewards
 
     def evalQ(self, state, joint_action):
         joint_action_idx = int("".join(map(str, joint_action)), 2)
@@ -177,6 +196,7 @@ def main():
         theta = theta + beta_theta * A * psi
 
         # Consensus step
+        weight_matrix = 0  ## PLACEHOLDER
         omega = weight_matrix * omega_tilde
 
         state = next_state
