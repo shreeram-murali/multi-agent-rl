@@ -26,8 +26,10 @@ class MultiAgentRandomMDP(mdp.MDP):
         self.R = self._generate_reward_matrix()
         self.G = self._generate_communication_matrix()
         self.L = self._generate_laplacian()
-        self.phi = self._generate_feature_matrix(5)
-        self.features_b = self._generate_feature_vectors_b(1)
+        K = 5
+        self.phi = self._generate_feature_matrix(K)
+        theta_dim = 5
+        self.features_b = self._generate_feature_vectors_b(theta_dim)
         # print(self.L)
         # eigs = np.linalg.eig(self.L)
         # print(eigs.eigenvalues)
@@ -113,7 +115,7 @@ class MultiAgentRandomMDP(mdp.MDP):
         return feature_matrix
 
     def _generate_feature_vectors_b(self, m):
-        feature_matrix_b = np.zeros((self.n_states, self.n_agents, m))
+        feature_matrix_b = np.zeros((self.n_states, self.n_actions, m))
         for state in range(self.n_states):
             for action in range(self.n_actions):
                 feature_matrix_b[state, action] = np.random.rand(m)
@@ -134,6 +136,9 @@ class MultiAgentRandomMDP(mdp.MDP):
         policy = num / den
         return policy
 
+    def choose_action(self, state):
+        pass
+
 
 def reward_functions(n_states, n_actions):
     return np.random.uniform(size=(N_AGENTS, N_ACTIONS, N_STATES))
@@ -152,11 +157,14 @@ def main():
     state = env.states[env.rng.choice(len(env.states), p=env.P0)]
     done = False
 
+    omega_dim = 5
+    theta_dim = 5
+
     # Define initial parameters
     mu_0 = np.zeros(N_AGENTS)
-    theta_0 = np.zeros(N_AGENTS)
-    omega_0 = np.zeros(N_AGENTS)
-    omega_tilde_0 = np.zeros(N_AGENTS)
+    theta_0 = np.zeros(N_AGENTS, theta_dim)
+    omega_0 = np.zeros(N_AGENTS, omega_dim)
+    omega_tilde_0 = np.zeros(N_AGENTS, omega_dim)
 
     # Initialize parameters
     mu = mu_0
@@ -164,6 +172,11 @@ def main():
     theta = theta_0
     omega_tilde = omega_tilde_0
     t_step = 0
+
+    # Initialize variables
+    td_error = np.zeros(N_AGENTS)
+    A = np.zeros(N_AGENTS)
+    psi = np.zeros(N_AGENTS)
 
     while not done:
 
@@ -178,22 +191,40 @@ def main():
         # update your multi-agent RL algorithm here based on the experience (state, actions, rewards, next_state)
 
         # We need to sample new actions here
-        next_joint_action = [1, 0, 1, 0, 0]  # Make this correct
+        next_joint_action = [
+            env.rng.choice(env.actions) for _ in range(N_AGENTS)
+        ]  # Make this correct
+
         # Mu update
         mu = (1 - beta_omega) * mu + beta_omega * rewards_
 
-        # TD error update
-        td_error = (
-            rewards
-            - mu
-            + omega * env.evalQ(next_state, next_joint_action)
-            - omega * env.evalQ(state, joint_action)
-        )
-        # Critic step
-        omega_tilde = omega + beta_omega * td_error @ env.evalQ(state, joint_action)
-        A, psi = 1
-        # Actor step
-        theta = theta + beta_theta * A * psi
+        for i in range(N_AGENTS):
+            Q_i_t = env.evalQ(state, joint_action)
+
+            # TD error update
+            td_error[i] = (
+                rewards_
+                - mu
+                + omega[i, :] * env.evalQ(next_state, next_joint_action)
+                - omega[i, :] * Q_i_t
+            )
+            # Critic step
+            omega_tilde[i, :] = omega[i, :] + beta_omega * td_error[i] @ Q_i_t
+            value_sum = 0
+            for ai in range(2):
+                joint_action_temp = np.copy(joint_action)
+                joint_action_temp[i] = ai
+                value_sum += (
+                    env.evalPolicy(state, ai, theta[i, :])
+                    * omega[i, :]
+                    @ env.evalQ(state, joint_action_temp)
+                )
+            A[i] = Q_i_t - value_sum
+            psi[i] = env.features_b[state, joint_action[i], :] - env.evalPolicy(
+                state, joint_action[i], theta[i, :]
+            ) * np.sum(env.features_b[state, :, :])
+            # Actor step
+            theta[i, :] = theta[i, :] + beta_theta * A[i] * psi[i]
 
         # Consensus step
         weight_matrix = 0  ## PLACEHOLDER
