@@ -136,8 +136,14 @@ class MultiAgentRandomMDP(mdp.MDP):
         policy = num / den
         return policy
 
-    def choose_action(self, state):
-        pass
+    def choose_action(self, state, theta):
+        p_1 = self.evalPolicy(state, 1, theta)
+        p_0 = self.evalPolicy(state, 0, theta)
+        choice = np.random.uniform()
+        if choice < p_0:
+            return 0
+        else:
+            return 1
 
 
 def reward_functions(n_states, n_actions):
@@ -178,22 +184,32 @@ def main():
     A = np.zeros(N_AGENTS)
     psi = np.zeros(N_AGENTS)
 
+    # Intial joint_action
+    joint_action_initial = [
+        env.choose_action(state, theta[ind, :]) for ind in range(N_AGENTS)
+    ]
+    joint_action = joint_action_initial
+
     while not done:
 
         # Calculate step sizes
         beta_omega = 1 / ((t_step + 1) ** 0.65)
         beta_theta = 1 / ((t_step + 1) ** 0.85)
 
-        joint_action = [
-            env.rng.choice(env.actions) for _ in range(N_AGENTS)
-        ]  # replace this with your multi-agent RL algorithm
+        # joint_action = [
+        #     env.rng.choice(env.actions) for _ in range(N_AGENTS)
+        # ]  # replace this with your multi-agent RL algorithm
+
+        # Used in the loop to change the joint_action
+        # for calculating the value of the advantage function
+        joint_action_temp = joint_action.copy()
         next_state, rewards_ = env.step(state, joint_action)
         # update your multi-agent RL algorithm here based on the experience (state, actions, rewards, next_state)
 
-        # We need to sample new actions here
+        # Sample new actions here
         next_joint_action = [
-            env.rng.choice(env.actions) for _ in range(N_AGENTS)
-        ]  # Make this correct
+            env.choose_action(next_state, theta[ind, :]) for ind in range(N_AGENTS)
+        ]
 
         # Mu update
         mu = (1 - beta_omega) * mu + beta_omega * rewards_
@@ -212,7 +228,6 @@ def main():
             omega_tilde[i, :] = omega[i, :] + beta_omega * td_error[i] @ Q_i_t
             value_sum = 0
             for ai in range(2):
-                joint_action_temp = np.copy(joint_action)
                 joint_action_temp[i] = ai
                 value_sum += (
                     env.evalPolicy(state, ai, theta[i, :])
