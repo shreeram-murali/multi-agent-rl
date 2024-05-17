@@ -146,6 +146,21 @@ class MultiAgentRandomMDP(mdp.MDP):
             return 1
 
 
+def create_weight_matrix_Ct(L):
+    N = L.shape[0]
+    Ct = np.zeros((N, N))
+    degrees = np.sum(L, axis=1)
+
+    for i in range(N):
+        for j in range(N):
+            if A[i, j] == 1:
+                Ct[i, j] = 1 / (1 + max(degrees[i], degrees[j]))
+    for i in range(N):
+        Ct[i, i] = 1 - np.sum(Ct[i, :])
+
+    return Ct
+
+
 def reward_functions(n_states, n_actions):
     return np.random.uniform(size=(N_AGENTS, N_ACTIONS, N_STATES))
 
@@ -180,6 +195,7 @@ def main():
     t_step = 0
 
     # Initialize variables
+    weight_matrix = create_weight_matrix_Ct(env.G)
     td_error = np.zeros(N_AGENTS)
     A = np.zeros(N_AGENTS)
     psi = np.zeros(N_AGENTS)
@@ -241,9 +257,9 @@ def main():
             # Actor step
             theta[i, :] = theta[i, :] + beta_theta * A[i] * psi[i]
 
-        # Consensus step
-        weight_matrix = 0  ## PLACEHOLDER
-        omega = weight_matrix * omega_tilde
+            # Consensus step
+            for ag_ind in range(N_AGENTS):
+                omega[i, :] = weight_matrix[i, ag_ind] * omega_tilde[ag_ind, :]
 
         state = next_state
         done = env.s_terminal[state]
