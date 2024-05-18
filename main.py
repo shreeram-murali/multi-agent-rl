@@ -39,7 +39,7 @@ class MultiAgentRandomMDP(mdp.MDP):
         super().__init__(self.states, self.actions, self.R, self.P, d0)
 
     def _generate_transition_matrix(self):
-        # we need to extend this matrix to be larger, for multiple agents
+        # we need to extend this matrix to be l arger, for multiple agents
         # here n_actions in the next line should be the number of joiint actions, i.e., 2^N
         # TODO: define joint actions
         P = self.rng.uniform(size=(self.n_states, self.n_joint_actions, self.n_states))
@@ -153,7 +153,7 @@ def create_weight_matrix_Ct(L):
 
     for i in range(N):
         for j in range(N):
-            if A[i, j] == 1:
+            if L[i, j] == 1:
                 Ct[i, j] = 1 / (1 + max(degrees[i], degrees[j]))
     for i in range(N):
         Ct[i, i] = 1 - np.sum(Ct[i, :])
@@ -161,8 +161,16 @@ def create_weight_matrix_Ct(L):
     return Ct
 
 
-def reward_functions(n_states, n_actions):
-    return np.random.uniform(size=(N_AGENTS, N_ACTIONS, N_STATES))
+def reward_functions(n_agents, n_states, n_actions):
+    # generate a base reward matrix which samples from a random uniform distribution bw 0 and 4
+    base_reward = np.random.uniform(0, 4, size=(n_agents, n_states, n_actions))
+
+    def sample_rewards(state, action):
+        # Here's where we implement the reward sampling:
+        sampled_reward = np.array(np.random.uniform(r - 0.5, r + 0.5) for r in base_reward[state, action, :])
+        return sampled_reward
+
+    return sample_rewards
 
 
 def main():
@@ -204,6 +212,7 @@ def main():
     joint_action_initial = [
         env.choose_action(state, theta[ind, :]) for ind in range(N_AGENTS)
     ]
+    
     joint_action = joint_action_initial
 
     while not done:
@@ -267,8 +276,8 @@ def main():
 
 
 if __name__ == "__main__":
-    N_STATES = 5
-    N_AGENTS = 5
+    N_STATES = 3
+    N_AGENTS = 3
     N_ACTIONS = 2
 
     main()
