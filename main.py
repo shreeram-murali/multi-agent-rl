@@ -52,7 +52,9 @@ class MultiAgentRandomMDP(mdp.MDP):
     def _generate_reward_matrix(self):
         R = np.zeros((self.n_states, self.n_actions, self.n_states, self.n_agents))
         for i in range(self.n_agents):
-            R[:, :, :, i] = self.reward_funcs[i](self.n_states, self.n_actions, self.n_actions)
+            R[:, :, :, i] = self.reward_funcs[i](
+                self.n_states, self.n_actions, self.n_actions
+            )
         return R
 
     def _generate_communication_matrix(self):
@@ -91,7 +93,9 @@ class MultiAgentRandomMDP(mdp.MDP):
         # for agent in connected_agents:
         #     updated_joint_action[agent] = self.rng.choice(self.actions)
 
-        rewards = np.array([self.reward_funcs[i](state, joint_action[i]) for i in range(self.n_agents)])
+        rewards = np.array(
+            [self.reward_funcs[i](state, joint_action[i]) for i in range(self.n_agents)]
+        )
         return next_state, rewards
 
     def _generate_feature_matrix(self, k):
@@ -177,10 +181,11 @@ def create_reward_functions(n_agents, n_states, n_actions):
             base_reward = base_rewards[state - 1, action - 1]
             sampled_reward = np.random.uniform(base_reward - 0.5, base_reward + 0.5)
             return sampled_reward
-        
+
         reward_funcs.append(individual_reward_function)
-    
+
     return reward_funcs
+
 
 def main():
     rewards = create_reward_functions(N_AGENTS, N_STATES, N_ACTIONS)
@@ -215,13 +220,13 @@ def main():
     weight_matrix = create_weight_matrix_Ct(env.G)
     td_error = np.zeros(N_AGENTS)
     A = np.zeros(N_AGENTS)
-    psi = np.zeros(N_AGENTS)
+    psi = np.zeros((N_AGENTS, theta_dim))
 
     # Intial joint_action
     joint_action_initial = [
         env.choose_action(state, theta[ind, :]) for ind in range(N_AGENTS)
     ]
-    
+
     joint_action = joint_action_initial
 
     while not done:
@@ -252,13 +257,13 @@ def main():
             Q_i_t = env.evalQ(state, joint_action)
             # TD error update
             td_error[i] = (
-                rewards_
-                - mu
-                + omega[i, :] * env.evalQ(next_state, next_joint_action)
-                - omega[i, :] * Q_i_t
+                rewards_[i]
+                - mu[i]
+                + omega[i, :] @ env.evalQ(next_state, next_joint_action)
+                - omega[i, :].T @ Q_i_t
             )
             # Critic step
-            omega_tilde[i, :] = omega[i, :] + beta_omega * td_error[i] @ Q_i_t
+            omega_tilde[i, :] = omega[i, :] + beta_omega * td_error[i] * Q_i_t
             value_sum = 0
             for ai in range(2):
                 joint_action_temp[i] = ai
@@ -267,8 +272,9 @@ def main():
                     * omega[i, :]
                     @ env.evalQ(state, joint_action_temp)
                 )
-            A[i] = Q_i_t - value_sum
-            psi[i] = env.features_b[state, joint_action[i], :] - env.evalPolicy(
+
+            A[i] = omega[i, :] @ Q_i_t - value_sum
+            psi[i, :] = env.features_b[state, joint_action[i], :] - env.evalPolicy(
                 state, joint_action[i], theta[i, :]
             ) * np.sum(env.features_b[state, :, :])
             # Actor step
