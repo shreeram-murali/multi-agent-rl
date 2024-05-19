@@ -80,16 +80,16 @@ class MultiAgentRandomMDP(mdp.MDP):
 
         # next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
         next_state = self.rng.choice(self.states, p=self.P[state, action_index])
-        connected_agents = np.where(
-            self.L[np.arange(self.n_agents), joint_action] != 0
-        )[0]
+        # connected_agents = np.where(
+        #     self.L[np.arange(self.n_agents), joint_action] != 0
+        # )[0]
 
-        updated_joint_action = list(joint_action)
-        for agent in connected_agents:
-            updated_joint_action[agent] = self.rng.choice(self.actions)
+        # updated_joint_action = list(joint_action)
+        # for agent in connected_agents:
+        #     updated_joint_action[agent] = self.rng.choice(self.actions)
 
-        rewards = self.R[state, joint_action, next_state, :]
-        return next_state, rewards, updated_joint_action
+        rewards = np.array([self.reward_funcs[i](state, action_index) for i in range(self.n_agents)])
+        return next_state, rewards
 
     def _generate_feature_matrix(self, k):
 
@@ -162,16 +162,20 @@ def create_weight_matrix_Ct(L):
 
 
 def reward_functions(n_agents, n_states, n_actions):
-    # generate a base reward matrix which samples from a random uniform distribution bw 0 and 4
-    base_reward = np.random.uniform(0, 4, size=(n_agents, n_states, n_actions))
+    # create an empty list to store the reward functions
+    reward_funcs = []
 
-    def sample_rewards(state, action):
-        # Here's where we implement the reward sampling:
-        sampled_reward = np.array(np.random.uniform(r - 0.5, r + 0.5) for r in base_reward[state, action, :])
-        return sampled_reward
+    for agent in range(n_agents):
+        base_rewards = np.random.uniform(0, 4, size=(n_states, n_actions))
 
-    return sample_rewards
+        def individual_reward_function(state, action, base_reward=base_rewards):
+            # Sample around the base reward for given state and action
 
+            base_reward = base_rewards[state, action]
+            sampled_reward = np.random.uniform(base_reward - 0.5, base_reward + 0.5)
+            return sampled_reward
+        
+        reward_funcs.append(individual_reward_function)
 
 def main():
     rewards = [reward_functions] * N_AGENTS
