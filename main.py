@@ -1,5 +1,6 @@
 import numpy as np
 import mdp
+import matplotlib.pyplot as plt
 
 
 class MultiAgentRandomMDP(mdp.MDP):
@@ -229,7 +230,11 @@ def main():
 
     joint_action = joint_action_initial
 
+    rewards_log = []
+
     while not done:
+
+        print(f"[LOG] Iteration {t_step}", sep='\r')
 
         # Calculate step sizes
         beta_omega = 1 / ((t_step + 1) ** 0.65)
@@ -288,10 +293,19 @@ def main():
         done = env.s_terminal[state]
         t_step += 1
 
+        if t_step == EPOCHS:
+            done = True
+
+        rewards_log.append(np.mean(rewards_))
+
+    # plt.plot(rewards_log)
+    # plt.show()
 
 if __name__ == "__main__":
     N_STATES = 5
     N_AGENTS = 5
     N_ACTIONS = 2
+
+    EPOCHS = 2000
 
     main()
