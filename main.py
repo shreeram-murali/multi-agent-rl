@@ -153,7 +153,7 @@ def create_weight_matrix_Ct(L):
 
     for i in range(N):
         for j in range(N):
-            if A[i, j] == 1:
+            if L[i, j] == 1:
                 Ct[i, j] = 1 / (1 + max(degrees[i], degrees[j]))
     for i in range(N):
         Ct[i, i] = 1 - np.sum(Ct[i, :])
@@ -232,7 +232,6 @@ def main():
 
         for i in range(N_AGENTS):
             Q_i_t = env.evalQ(state, joint_action)
-
             # TD error update
             td_error[i] = (
                 rewards_
