@@ -59,6 +59,9 @@ class MultiAgentRandomMDP(mdp.MDP):
         """Generate a Laplacian matrix for N agents with connectivity ratio 4/N
         Connectivity ratio is defined as 2*E/[N(N-1)] where N is the number of agents and E is the
         number of edges. For 5 agents, we need 8 edges to get that ratio"""
+
+        # TODO: This is hard-coded for 5 agents. We need to generalize this
+
         G = np.zeros((self.n_agents, self.n_agents))
         E = 1
         while E != 8:
@@ -88,7 +91,7 @@ class MultiAgentRandomMDP(mdp.MDP):
         # for agent in connected_agents:
         #     updated_joint_action[agent] = self.rng.choice(self.actions)
 
-        rewards = np.array([self.reward_funcs[i](state, action_index) for i in range(self.n_agents)])
+        rewards = np.array([self.reward_funcs[i](state, joint_action[i]) for i in range(self.n_agents)])
         return next_state, rewards
 
     def _generate_feature_matrix(self, k):
@@ -171,7 +174,7 @@ def create_reward_functions(n_agents, n_states, n_actions):
         def individual_reward_function(state, action, base_reward=base_rewards):
             # Sample around the base reward for given state and action
 
-            base_reward = base_rewards[state, action]
+            base_reward = base_rewards[state - 1, action - 1]
             sampled_reward = np.random.uniform(base_reward - 0.5, base_reward + 0.5)
             return sampled_reward
         
@@ -197,9 +200,9 @@ def main():
 
     # Define initial parameters
     mu_0 = np.zeros(N_AGENTS)
-    theta_0 = np.zeros(N_AGENTS, theta_dim)
-    omega_0 = np.zeros(N_AGENTS, omega_dim)
-    omega_tilde_0 = np.zeros(N_AGENTS, omega_dim)
+    theta_0 = np.zeros((N_AGENTS, theta_dim))
+    omega_0 = np.zeros((N_AGENTS, omega_dim))
+    omega_tilde_0 = np.zeros((N_AGENTS, omega_dim))
 
     # Initialize parameters
     mu = mu_0
@@ -282,8 +285,8 @@ def main():
 
 
 if __name__ == "__main__":
-    N_STATES = 3
-    N_AGENTS = 3
+    N_STATES = 5
+    N_AGENTS = 5
     N_ACTIONS = 2
 
     main()
