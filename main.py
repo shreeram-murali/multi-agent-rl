@@ -161,7 +161,7 @@ def create_weight_matrix_Ct(L):
     return Ct
 
 
-def reward_functions(n_agents, n_states, n_actions):
+def create_reward_functions(n_agents, n_states, n_actions):
     # create an empty list to store the reward functions
     reward_funcs = []
 
@@ -180,7 +180,7 @@ def reward_functions(n_agents, n_states, n_actions):
     return reward_funcs
 
 def main():
-    rewards = [reward_functions] * N_AGENTS
+    rewards = create_reward_functions(N_AGENTS, N_STATES, N_ACTIONS)
     env = MultiAgentRandomMDP(
         n_agents=N_AGENTS,
         n_actions=N_ACTIONS,
