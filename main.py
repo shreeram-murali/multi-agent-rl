@@ -52,7 +52,7 @@ class MultiAgentRandomMDP(mdp.MDP):
     def _generate_reward_matrix(self):
         R = np.zeros((self.n_states, self.n_actions, self.n_states, self.n_agents))
         for i in range(self.n_agents):
-            R[:, :, :, i] = self.reward_funcs[i](self.n_states, self.n_actions)
+            R[:, :, :, i] = self.reward_funcs[i](self.n_states, self.n_actions, self.n_actions)
         return R
 
     def _generate_communication_matrix(self):
@@ -176,6 +176,8 @@ def reward_functions(n_agents, n_states, n_actions):
             return sampled_reward
         
         reward_funcs.append(individual_reward_function)
+    
+    return reward_funcs
 
 def main():
     rewards = [reward_functions] * N_AGENTS
