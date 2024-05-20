@@ -234,7 +234,7 @@ def main():
 
     while not done:
 
-        print(f"[LOG] Iteration {t_step}", sep='\r')
+        print(f"[LOG] Iteration {t_step}", sep="\r")
 
         # Calculate step sizes
         beta_omega = 1 / ((t_step + 1) ** 0.65)
@@ -285,11 +285,13 @@ def main():
             # Actor step
             theta[i, :] = theta[i, :] + beta_theta * A[i] * psi[i]
 
+        for i in range(N_AGENTS):
             # Consensus step
             for ag_ind in range(N_AGENTS):
                 omega[i, :] = weight_matrix[i, ag_ind] * omega_tilde[ag_ind, :]
 
         state = next_state
+        joint_action = next_joint_action
         done = env.s_terminal[state]
         t_step += 1
 
@@ -300,6 +302,7 @@ def main():
 
     # plt.plot(rewards_log)
     # plt.show()
+
 
 if __name__ == "__main__":
     N_STATES = 5
