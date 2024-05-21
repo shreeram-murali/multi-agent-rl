@@ -54,7 +54,7 @@ class MultiAgentRandomMDP(mdp.MDP):
         R = np.zeros((self.n_states, self.n_actions, self.n_states, self.n_agents))
         for i in range(self.n_agents):
             R[:, :, :, i] = self.reward_funcs[i](
-                self.n_states, self.n_actions, self.n_actions
+                self.n_states, self.n_actions
             )
         return R
 
@@ -205,10 +205,10 @@ def main():
     theta_dim = 5
 
     # Define initial parameters
-    mu_0 = np.zeros(N_AGENTS)
-    theta_0 = np.zeros((N_AGENTS, theta_dim))
-    omega_0 = np.zeros((N_AGENTS, omega_dim))
-    omega_tilde_0 = np.zeros((N_AGENTS, omega_dim))
+    mu_0 = np.ones(N_AGENTS)
+    theta_0 = np.ones((N_AGENTS, theta_dim))
+    omega_0 = np.ones((N_AGENTS, omega_dim))
+    omega_tilde_0 = np.ones((N_AGENTS, omega_dim))
 
     # Initialize parameters
     mu = mu_0
@@ -230,11 +230,16 @@ def main():
 
     joint_action = joint_action_initial
 
-    rewards_log = []
+    # Logging variables
+    average_rewards_log = []
+    cumulative_reward = 0
+    cumulative_rewards_log = []
+    q_vales_log = []
+    td_error_log = []
 
     while not done:
 
-        print(f"[LOG] Iteration {t_step}", sep='\r')
+        print(f"[LOG] Iteration {t_step}", end='\r')
 
         # Calculate step sizes
         beta_omega = 1 / ((t_step + 1) ** 0.65)
@@ -296,10 +301,30 @@ def main():
         if t_step == EPOCHS:
             done = True
 
-        rewards_log.append(np.mean(rewards_))
+        average_rewards_log.append(np.mean(rewards_))
+        cumulative_reward += np.sum(rewards_)
+        cumulative_rewards_log.append(cumulative_reward)
+        q_vales_log.append(np.mean(Q_i_t))
+        td_error_log.append(np.mean(td_error))
 
-    # plt.plot(rewards_log)
-    # plt.show()
+    plt.subplot(221)
+    plt.plot(average_rewards_log, label='average rewards')
+    plt.legend()
+
+    plt.subplot(222)
+    plt.plot(cumulative_rewards_log, label='cumulative rewards')
+    plt.legend()
+
+    plt.subplot(223)
+    plt.plot(q_vales_log, label='Q values')
+    plt.legend()
+
+    plt.subplot(224)
+    plt.plot(td_error_log, label='TD error')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == "__main__":
     N_STATES = 5
