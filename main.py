@@ -204,11 +204,13 @@ def main():
     omega_dim = 5
     theta_dim = 5
 
-    # Define initial parameters
-    mu_0 = np.ones(N_AGENTS)
-    theta_0 = np.ones((N_AGENTS, theta_dim))
-    omega_0 = np.ones((N_AGENTS, omega_dim))
-    omega_tilde_0 = np.ones((N_AGENTS, omega_dim))
+    # Initial reward
+    mu_0 = np.zeros(N_AGENTS)
+
+    # Initial parameters
+    theta_0 = np.zeros((N_AGENTS, theta_dim))
+    omega_0 = np.zeros((N_AGENTS, omega_dim))
+    omega_tilde_0 = np.zeros((N_AGENTS, omega_dim))
 
     # Initialize parameters
     mu = mu_0
@@ -235,7 +237,12 @@ def main():
     cumulative_reward = 0
     cumulative_rewards_log = []
     q_vales_log = []
-    td_error_log = []
+    td_error_log = [] 
+    mu_log = []
+    cumulative_mu = 0.
+    cumulative_mu_log = []
+
+    mu_log_for_all_agents = np.zeros((N_AGENTS, EPOCHS))
 
     while not done:
 
@@ -293,9 +300,14 @@ def main():
             # Consensus step
             for ag_ind in range(N_AGENTS):
                 omega[i, :] = weight_matrix[i, ag_ind] * omega_tilde[ag_ind, :]
+        
 
         state = next_state
+        joint_action = next_joint_action
         done = env.s_terminal[state]
+
+        mu_log_for_all_agents[:, t_step] = mu
+
         t_step += 1
 
         if t_step == EPOCHS:
@@ -306,31 +318,57 @@ def main():
         cumulative_rewards_log.append(cumulative_reward)
         q_vales_log.append(np.mean(Q_i_t))
         td_error_log.append(np.mean(td_error))
+        mu_log.append(mu[0])
+        cumulative_mu += mu[0]
+        cumulative_mu_log.append(cumulative_mu)
 
-    plt.subplot(221)
-    plt.plot(average_rewards_log, label='average rewards')
+        
+
+    # plt.subplot(221)
+    # plt.plot(average_rewards_log, label='average rewards')
+    # plt.legend()
+
+    # plt.subplot(222)
+    # plt.plot(cumulative_rewards_log, label='cumulative rewards')
+    # plt.legend()
+
+    plt.plot(mu_log_for_all_agents[0, :], label='Agent 1')
+    plt.plot(mu_log_for_all_agents[1, :], label='Agent 2')
+    plt.plot(mu_log_for_all_agents[2, :], label='Agent 3')
+    plt.plot(mu_log_for_all_agents[3, :], label='Agent 4')
+    plt.plot(mu_log_for_all_agents[4, :], label='Agent 5')
+    plt.xlabel('Epochs')
+    plt.ylabel('Rewards at each step')
     plt.legend()
-
-    plt.subplot(222)
-    plt.plot(cumulative_rewards_log, label='cumulative rewards')
-    plt.legend()
-
-    plt.subplot(223)
-    plt.plot(q_vales_log, label='Q values')
-    plt.legend()
-
-    plt.subplot(224)
-    plt.plot(td_error_log, label='TD error')
-    plt.legend()
-
-    plt.tight_layout()
     plt.show()
+
+    plt.cla()
+    
+
+    # plt.subplot(223)
+    # plt.plot(q_vales_log, label='Q values')
+    # plt.legend()
+
+    # plt.subplot(224)
+    # plt.plot(td_error_log, label='TD error')
+    # plt.legend()
+
+    # plt.subplot(221)
+    # plt.plot(mu_log, label='mu')
+    # plt.legend()
+
+    # plt.subplot(222)
+    # plt.plot(cumulative_mu_log, label='cumulative mu')
+    # plt.legend()
+
+    # plt.tight_layout()
+    # plt.show()
 
 if __name__ == "__main__":
     N_STATES = 5
     N_AGENTS = 5
     N_ACTIONS = 2
 
-    EPOCHS = 2000
+    EPOCHS = 500
 
     main()
