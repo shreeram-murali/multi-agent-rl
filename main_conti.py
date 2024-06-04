@@ -14,9 +14,10 @@ class MultiAgentRandomMDP(mdp.MDP):
         """
         self.n_agents = n_agents
         self.n_states = n_states
-        self.n_actions = n_actions
+        self.n_actions = n_actions  # This is now infinite
+        # self.action_range = 0:1
         self.reward_funcs = reward_funcs
-        self.n_joint_actions = n_actions**n_agents
+        self.n_joint_actions = n_actions**n_agents  # NOTE: No longer true
 
         self.rng = np.random.default_rng(seed)
 
@@ -42,7 +43,8 @@ class MultiAgentRandomMDP(mdp.MDP):
     def _generate_transition_matrix(self):
         # we need to extend this matrix to be l arger, for multiple agents
         # here n_actions in the next line should be the number of joiint actions, i.e., 2^N
-        # TODO: define joint actions
+
+        # TODO: This needs to be redefined, we now have an infinte amount of joint actions
         P = self.rng.uniform(size=(self.n_states, self.n_joint_actions, self.n_states))
         # figure out how to map each action in the joint action space to a column vector
         # NOTE: I guess this is already done now? I'm not sure what other changes are needed apart
@@ -51,6 +53,8 @@ class MultiAgentRandomMDP(mdp.MDP):
         return P
 
     def _generate_reward_matrix(self):
+
+        # TODO: This needs to be redefined, we now have an infinte amount of actions
         R = np.zeros((self.n_states, self.n_actions, self.n_states, self.n_agents))
         for i in range(self.n_agents):
             R[:, :, :, i] = self.reward_funcs[i](self.n_states, self.n_actions)
@@ -80,6 +84,8 @@ class MultiAgentRandomMDP(mdp.MDP):
 
     def step(self, state, joint_action):
         # Convert joint_action to an index in the joint action space
+
+        # TODO: this needs to be redifined, as n_actions is infinite
         action_index = sum(a * (self.n_actions**i) for i, a in enumerate(joint_action))
 
         # next_state = self.rng.choice(self.states, p=self.P[state, actions[0]])
@@ -121,6 +127,8 @@ class MultiAgentRandomMDP(mdp.MDP):
         return feature_matrix
 
     def _generate_feature_vectors_b(self, m):
+
+        # TODO: this function needs to be fixed, n_actions is infinite
         feature_matrix_b = np.zeros((self.n_states, self.n_actions, m))
         for state in range(self.n_states):
             for action in range(self.n_actions):
@@ -168,6 +176,7 @@ def create_weight_matrix_Ct(L):
 
 
 def create_reward_functions(n_agents, n_states, n_actions):
+    # TODO: This needs to be redifined, n_actions is infinite now
     # create an empty list to store the reward functions
     reward_funcs = []
 
