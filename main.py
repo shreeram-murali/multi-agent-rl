@@ -297,6 +297,7 @@ def main():
             # Actor step
             theta[i, :] = theta[i, :] + beta_theta * A[i] * psi[i]
 
+        for i in range(N_AGENTS):
             # Consensus step
             for ag_ind in range(N_AGENTS):
                 omega[i, :] = weight_matrix[i, ag_ind] * omega_tilde[ag_ind, :]
@@ -363,6 +364,7 @@ def main():
 
     # plt.tight_layout()
     # plt.show()
+
 
 if __name__ == "__main__":
     N_STATES = 5
