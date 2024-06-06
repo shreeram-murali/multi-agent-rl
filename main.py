@@ -123,6 +123,8 @@ class MultiAgentRandomMDP(mdp.MDP):
         return feature_matrix
 
     def _generate_feature_vectors_b(self, m):
+        # for each action there should be a vector of size m?
+        # why is the shape of this (5, 2, 5)
         feature_matrix_b = np.zeros((self.n_states, self.n_actions, m))
         for state in range(self.n_states):
             for action in range(self.n_actions):
@@ -180,7 +182,7 @@ def create_reward_functions(n_agents, n_states, n_actions):
             # Sample around the base reward for given state and action
 
             base_reward = base_rewards[state - 1, action - 1]
-            sampled_reward = np.random.uniform(base_reward - 0.5, base_reward + 0.5)
+            sampled_reward = np.random.uniform(base_reward - 0.01, base_reward + 0.01)
             return sampled_reward
 
         reward_funcs.append(individual_reward_function)
@@ -205,18 +207,14 @@ def main():
     theta_dim = 5
 
     # Initial reward
-    mu_0 = np.zeros(N_AGENTS)
+    mu = np.zeros(N_AGENTS)
 
     # Initial parameters
-    theta_0 = np.zeros((N_AGENTS, theta_dim))
-    omega_0 = np.zeros((N_AGENTS, omega_dim))
-    omega_tilde_0 = np.zeros((N_AGENTS, omega_dim))
+    # theta_0 = np.zeros((N_AGENTS, theta_dim))
+    theta = np.random.rand(N_AGENTS, theta_dim)
+    omega = np.random.rand(N_AGENTS, omega_dim)
+    omega_tilde = np.zeros((N_AGENTS, omega_dim))
 
-    # Initialize parameters
-    mu = mu_0
-    omega = omega_0
-    theta = theta_0
-    omega_tilde = omega_tilde_0
     t_step = 0
 
     # Initialize variables
@@ -241,12 +239,13 @@ def main():
     mu_log = []
     cumulative_mu = 0.
     cumulative_mu_log = []
+    prob_action_11 = []
 
     mu_log_for_all_agents = np.zeros((N_AGENTS, EPOCHS))
 
     while not done:
 
-        print(f"[LOG] Iteration {t_step}", end='\r')
+        print(f"[LOG] Iteration {t_step}")
 
         # Calculate step sizes
         beta_omega = 1 / ((t_step + 1) ** 0.65)
@@ -277,30 +276,49 @@ def main():
                 rewards_[i]
                 - mu[i]
                 + omega[i, :] @ env.evalQ(next_state, next_joint_action)
-                - omega[i, :].T @ Q_i_t
+                - omega[i, :] @ Q_i_t
             )
+
+            if i == 0:
+                q_vales_log.append(omega[i, :] @ Q_i_t)
+                ob = omega[i, :] @ Q_i_t
+                pass
+            
             # Critic step
             omega_tilde[i, :] = omega[i, :] + beta_omega * td_error[i] * Q_i_t
             value_sum = 0
             for ai in range(2):
                 joint_action_temp[i] = ai
+                # print(f"[POLICY]: {env.evalPolicy(state, ai, theta[i, :])}, action: {ai}, theta: {theta[i, :]}")
+                if ai == 0 and i == 0: 
+                    prob_action_11.append(env.evalPolicy(state, ai, theta[i, :]))
+
                 value_sum += (
                     env.evalPolicy(state, ai, theta[i, :])
                     * omega[i, :]
                     @ env.evalQ(state, joint_action_temp)
                 )
+            
+            print("[THETA]: ", theta[i, :], i)
 
             A[i] = omega[i, :] @ Q_i_t - value_sum
             psi[i, :] = env.features_b[state, joint_action[i], :] - env.evalPolicy(
                 state, joint_action[i], theta[i, :]
             ) * np.sum(env.features_b[state, :, :])
             # Actor step
-            theta[i, :] = theta[i, :] + beta_theta * A[i] * psi[i]
-
+            theta[i, :] = theta[i, :] + beta_theta * A[i] * psi[i, :]
+        
         for i in range(N_AGENTS):
             # Consensus step
+            # here omega becomes zero because connectivity
+            # maybe because it doesn't have a spanning tree
+
+            omega_sum = np.zeros_like(omega[i,:])
             for ag_ind in range(N_AGENTS):
-                omega[i, :] = weight_matrix[i, ag_ind] * omega_tilde[ag_ind, :]
+                omega_sum += weight_matrix[i, ag_ind] * omega_tilde[ag_ind, :]
+            omega[i, :] = omega_sum
+            
+            pass
         
 
         state = next_state
@@ -311,17 +329,19 @@ def main():
 
         t_step += 1
 
+
+
         if t_step == EPOCHS:
             done = True
 
         average_rewards_log.append(np.mean(rewards_))
         cumulative_reward += np.sum(rewards_)
         cumulative_rewards_log.append(cumulative_reward)
-        q_vales_log.append(np.mean(Q_i_t))
         td_error_log.append(np.mean(td_error))
         mu_log.append(mu[0])
         cumulative_mu += mu[0]
         cumulative_mu_log.append(cumulative_mu)
+
 
         
 
@@ -343,27 +363,36 @@ def main():
     plt.legend()
     plt.show()
 
-    plt.cla()
+    plt.clf()
+    plt.close()
+
+
+    plt.plot(prob_action_11, label='Probability of action 1 for agent 1')
+    plt.legend()
+    plt.show()
+
+    plt.clf()
+    plt.close()
     
 
-    # plt.subplot(223)
-    # plt.plot(q_vales_log, label='Q values')
-    # plt.legend()
+    plt.subplot(223)
+    plt.plot(q_vales_log, label='Q values')
+    plt.legend()
 
-    # plt.subplot(224)
-    # plt.plot(td_error_log, label='TD error')
-    # plt.legend()
+    plt.subplot(224)
+    plt.plot(td_error_log, label='TD error')
+    plt.legend()
 
-    # plt.subplot(221)
-    # plt.plot(mu_log, label='mu')
-    # plt.legend()
+    plt.subplot(221)
+    plt.plot(mu_log, label='mu')
+    plt.legend()
 
-    # plt.subplot(222)
-    # plt.plot(cumulative_mu_log, label='cumulative mu')
-    # plt.legend()
+    plt.subplot(222)
+    plt.plot(cumulative_mu_log, label='cumulative mu')
+    plt.legend()
 
-    # plt.tight_layout()
-    # plt.show()
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -371,6 +400,6 @@ if __name__ == "__main__":
     N_AGENTS = 5
     N_ACTIONS = 2
 
-    EPOCHS = 500
+    EPOCHS = 2000
 
     main()
